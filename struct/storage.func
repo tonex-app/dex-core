@@ -1,0 +1,95 @@
+global int self::init?;
+
+global int      self::deployed?;
+global slice    self::deployer;
+global int      self::dex_id;
+
+global slice    self::jetton_addr;
+global slice    self::lp_addr;
+global slice    self::lp_root;
+
+
+global int      self::ton_balance;
+global int      self::jetton_balance;
+global int      self::lp_supply;
+
+global slice    self::admin_addr;
+global int      self::dex_commission;
+global int      self::lp_commission;
+global int      self::factor;
+
+global int      self::jetton_dex_commission;
+global int      self::ton_dex_commission;
+
+
+
+() init_data() impure inline_ref {
+    ifnot(null?(self::init?)) {
+        return ();
+    }
+
+    slice data = get_data().begin_parse();
+    
+    self::deployed?     = data~load_int(1);
+    throw_unless(err::not_deployed, self::deployed?);
+    self::deployer      = data~load_msg_addr();
+    self::dex_id        = data~load_uint(32);
+
+
+    slice walls = data~load_ref().begin_parse();
+    self::jetton_addr       = walls~load_msg_addr();
+    self::lp_addr           = walls~load_msg_addr();
+    self::lp_root           = walls~load_msg_addr();
+
+    slice balances = data~load_ref().begin_parse();
+    self::ton_balance       = balances~load_coins();
+    self::jetton_balance    = balances~load_coins();
+    self::lp_supply         = balances~load_coins();
+
+    slice params = data~load_ref().begin_parse();
+    self::admin_addr        = params~load_msg_addr();
+    self::dex_commission    = params~load_uint(30);
+    self::lp_commission     = params~load_uint(30);
+    self::factor            = params~load_uint(30);
+
+    slice dex_commissions = params~load_ref().begin_parse();
+    self::jetton_dex_commission = dex_commissions~load_coins();
+    self::ton_dex_commission    = dex_commissions~load_coins();
+
+    self::init? = true;
+}
+
+() pack_data() impure inline_ref {
+    builder data = begin_cell()
+        .store_int(self::deployed?, 1)
+        .store_slice(self::deployer)
+        .store_uint(self::dex_id, 32);
+
+    builder walls = begin_cell()
+        .store_slice(self::jetton_addr)
+        .store_slice(self::lp_addr)
+        .store_slice(self::lp_root);
+    
+    builder balances = begin_cell()
+        .store_coins(self::ton_balance)
+        .store_coins(self::jetton_balance)
+        .store_coins(self::lp_supply);
+    
+    builder params = begin_cell()
+        .store_slice(self::admin_addr)
+        .store_uint(self::dex_commission, 30)
+        .store_uint(self::lp_commission, 30)
+        .store_uint(self::factor, 30)
+        .store_ref(
+            begin_cell()
+                .store_coins(self::jetton_dex_commission)
+                .store_coins(self::ton_dex_commission)
+            .end_cell()
+        );
+    
+    data = data.store_ref(walls.end_cell());
+    data = data.store_ref(balances.end_cell());
+    data = data.store_ref(params.end_cell());
+
+    set_data(data.end_cell());
+}

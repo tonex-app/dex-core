@@ -1,0 +1,29 @@
+slice   delib::ES()           asm "<b b> <s PUSHSLICE";         ;; creates an empty slice
+
+const int JWALL::TRANSFER_NOTIFICATION = 50000000; ;; 0,05 ton
+const int TARGET::PROCESS = 50000000; ;; 0,05 ton
+const int JWALL::BURN = 50000000; ;; 0,05 ton
+const int JWALL::TARGET = 250000000; ;; 0,25 ton
+const int MAIN::TARGET = 500000000; ;; 0,5 ton
+const int ROOT::TARGET = 250000000; ;; 0,25 ton
+
+
+
+const int err::not_deployed = 1001;
+const int err::access = 1002;
+const int err::small_amount = 1003;
+const int err::constructor = 1004;
+const int err::not_enough = 1005;
+
+const int op::burn = 0x595f07bc;
+const int op::transfer_notification = 0xab0ba; ;; FIND ME
+const int op::transfer = 0xf8a7ea5;
+const int op::internal_transfer = 0x178d4519;
+const int op::mint = 21;
+const int op::excesses = 1000; ;; FIND ME
+
+
+const int op::main::swap = 2001;
+const int op::main::add_liqudity = 2002;
+const int op::main::remove_liqudity = 2003;
+const int op::main::constructor = 2004;

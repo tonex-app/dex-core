@@ -1,0 +1,80 @@
+int swap::ton_to_jetton(
+    int max_price,
+    slice sender
+) impure inline_ref {
+    int extra_tons = msg::value - (JWALL::TRANSFER_NOTIFICATION + (msg::fwd_fee * 4) + TARGET::PROCESS);
+    if (extra_tons <= 0) {
+        utils::send_tons(sender, msg::value);
+        return true;
+    }
+
+    (int amount_out, int market_price) = math::get_jetton_price(extra_tons);
+    if (market_price > max_price) {
+        utils::send_tons(sender, msg::value);
+        return true;
+    }
+
+    if (amount_out > self::jetton_balance) {
+        utils::send_tons(sender, msg::value);
+        return true;
+    }
+
+    utils::send_tokens(sender, amount_out);
+
+    self::ton_balance += extra_tons;
+    self::jetton_balance -= amount_out;
+    int price_after_swap = math::get_linear_price();
+
+    event::emit(sender, event::swap(
+        sender,
+        false,
+        price_after_swap,
+        extra_tons,
+        amount_out
+    ));
+    return true;
+}
+
+int swap::jetton_to_ton(
+    slice sender,
+    int jetton_amount,
+    int max_price
+) impure inline_ref {
+    int extra_tons = msg::value - (msg::fwd_fee * 2) - TARGET::PROCESS;
+    if (extra_tons < 0) {
+        utils::return_jettons(sender, jetton_amount);
+        return true;
+    }
+
+    (int amount_out, int market_price) = math::get_ton_price(jetton_amount);
+    if (market_price > max_price) {
+        utils::return_jettons(sender, jetton_amount);
+        return true;
+    } 
+
+    if (amount_out > self::ton_balance) {
+        utils::return_jettons(sender, jetton_amount);
+        return true;
+    }
+
+    utils::send_tons(sender, msg::value);
+
+    self::ton_balance -= amount_out;
+    self::jetton_balance += jetton_amount;
+
+    int price_after_swap = math::get_linear_price();
+    event::emit(sender, event::swap(
+        sender,
+        true,
+        price_after_swap,
+        amount_out,
+        jetton_amount
+    ));
+
+    return true;
+}
+
+int dex::swap(slice in_msg_body) impure inline_ref {
+    int max_price = in_msg_body~load_coins();
+    return swap::ton_to_jetton(max_price, msg::sender);
+}

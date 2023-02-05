@@ -1,0 +1,145 @@
+() utils::send_tokens(slice to, int amount) impure inline_ref {
+    cell body = begin_cell()
+        .store_uint(op::transfer, 32)
+        .store_uint(cur_lt(), 64)
+        .store_coins(amount)
+        .store_slice(to)
+        .store_slice(to)
+        .store_coins(JWALL::TRANSFER_NOTIFICATION)
+        .store_uint(1, 2)
+        .end_cell();
+    
+    cell msg = begin_cell()
+        .store_uint(0x18, 6)
+        .store_slice(self::jetton_addr)
+        .store_coins(JWALL::TRANSFER_NOTIFICATION + (msg::fwd_fee * 2))
+        .store_uint(1, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+        .store_ref(body)
+        .end_cell();
+    
+    send_raw_message(msg, 1);
+}
+
+() utils::send_tons(slice to, int amount) impure inline_ref {
+    cell msg = begin_cell()
+        .store_uint(0x18, 6)
+        .store_slice(to)
+        .store_coins(amount)
+        .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+        .end_cell();
+
+    send_raw_message(msg, 2);
+}
+
+() utils::return_jettons(slice to, int amount) impure inline_ref {
+    cell body = begin_cell()
+        .store_uint(op::transfer, 32)
+        .store_uint(cur_lt(), 64)
+        .store_coins(amount)
+        .store_slice(to)
+        .store_slice(to)
+        .store_coins(JWALL::TRANSFER_NOTIFICATION)
+        .store_uint(1, 2)
+        .end_cell();
+    
+    cell msg = begin_cell()
+        .store_uint(0x18, 6)
+        .store_slice(self::jetton_addr)
+        .store_coins(msg::value)
+        .store_uint(1, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+        .store_ref(body)
+        .end_cell();
+    
+    send_raw_message(msg, 0);
+}
+
+() utils::return_lp(slice to, int amount) impure inline_ref {
+     cell body = begin_cell()
+        .store_uint(op::transfer, 32)
+        .store_uint(cur_lt(), 64)
+        .store_coins(amount)
+        .store_slice(to)
+        .store_slice(to)
+        .store_coins(JWALL::TRANSFER_NOTIFICATION)
+        .store_uint(1, 2)
+        .end_cell();
+    
+    cell msg = begin_cell()
+        .store_uint(0x18, 6)
+        .store_slice(self::lp_addr)
+        .store_coins(msg::value)
+        .store_uint(1, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+        .store_ref(body)
+        .end_cell();
+    
+    send_raw_message(msg, 0);
+}
+
+() utils::send_from_lp(slice to, int ton_amount, int jetton_amount) impure inline_ref {
+    cell body = begin_cell()
+        .store_uint(op::transfer, 32)
+        .store_uint(cur_lt(), 64)
+        .store_coins(jetton_amount)
+        .store_slice(to)
+        .store_slice(to)
+        .store_coins(ton_amount - (msg::fwd_fee * 2))
+        .store_uint(1, 2)
+        .end_cell();
+    
+    cell msg = begin_cell()
+        .store_uint(0x18, 6)
+        .store_slice(self::jetton_addr)
+        .store_coins(ton_amount)
+        .store_uint(1, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+        .store_ref(body)
+        .end_cell();
+    
+    send_raw_message(msg, 1);
+}
+
+() utils::burn_lp(int amount) impure inline_ref {
+    cell body = begin_cell()
+        .store_uint(op::burn, 32)
+        .store_uint(cur_lt(), 64)
+        .store_coins(amount)
+        .store_slice(my_address())
+        .store_int(0, 1)
+        .end_cell();
+    
+    cell msg = begin_cell()
+        .store_uint(0x18, 6)
+        .store_slice(self::lp_addr)
+        .store_coins(JWALL::BURN)
+        .store_uint(1, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+        .store_ref(body)
+        .end_cell();
+    
+    send_raw_message(msg, 1);
+}
+
+() utils::bounce_jettons(int jetton_amount, slice to) impure inline_ref {
+    cell body = begin_cell()
+        .store_uint(op::transfer, 32)
+        .store_uint(cur_lt(), 64)
+        .store_coins(jetton_amount)
+        .store_slice(to)
+        .store_slice(to)
+        .store_coins(msg::value - (2 * msg::fwd_fee))
+        .store_uint(1, 2)
+        .end_cell();
+    
+    cell msg = begin_cell()
+        .store_uint(0x18, 6)
+        .store_slice(self::jetton_addr)
+        .store_coins(msg::value)
+        .store_uint(1, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+        .store_ref(body)
+        .end_cell();
+    
+    send_raw_message(msg, 0);
+}
+
+int utils::excesses_to_admin() {
+    self::ton_dex_commission += msg::value;
+    return true;
+}

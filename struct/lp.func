@@ -1,0 +1,99 @@
+;; DEX -> ROOT -> JWALL
+;; jwall target + jwal transfer notification + 2 * fwd fee
+
+() lp::mint(int amount, slice sender) impure inline_ref {
+    cell master_msg = begin_cell()
+        .store_uint(op::internal_transfer, 32)
+        .store_uint(0, 64)
+        .store_coins(amount)
+        .store_slice(my_address())
+        .store_slice(sender)
+        .store_coins(JWALL::TRANSFER_NOTIFICATION)
+        .store_int(0, 1)
+        .end_cell();
+    
+    cell body = begin_cell()
+        .store_uint(op::mint, 32)
+        .store_uint(0, 64)
+        .store_slice(sender)
+        .store_coins(JWALL::TARGET)
+        .store_ref(master_msg)
+        .end_cell();
+    
+    cell msg = begin_cell()
+        .store_uint(0x18, 6)
+        .store_slice(self::lp_root)
+        .store_coins(JWALL::TARGET + JWALL::TRANSFER_NOTIFICATION + msg::fwd_fee * 2)
+        .store_uint(1, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+        .store_ref(body)
+        .end_cell();
+    
+    send_raw_message(msg, 1);
+}
+
+int lp::add_liquidity(int jetton_amount, slice sender) impure inline_ref {
+    int extra_tons = msg::value - JWALL::TARGET - JWALL::TRANSFER_NOTIFICATION - (msg::fwd_fee * 2);
+    throw_unless(err::small_amount, jetton_amount > 0);
+    throw_unless(err::small_amount, extra_tons >= 0);
+
+    (int need_ton, int need_jetton, int excesses_ton, int is_invalid?) = math::get_need_amount(extra_tons, jetton_amount);
+
+
+    if (is_invalid?) {
+        utils::send_from_lp(sender, msg::value, jetton_amount);
+        return true;
+    }
+
+    if (excesses_ton > 0) {
+        utils::send_tons(sender, excesses_ton);
+    }
+
+    int lp_amount = math::get_lp_value(need_ton, need_jetton);
+
+    lp::mint(lp_amount, sender);
+
+
+    event::emit(sender, event::add_liqudity(
+            sender,
+            need_ton,
+            need_jetton,
+            lp_amount
+    ));
+
+
+    self::lp_supply += lp_amount;
+    self::ton_balance += need_ton;
+    self::jetton_balance += need_jetton;
+    return true;
+}
+
+
+;; DEX -> JWALL LP -> BURN(ROOT)  2 * fwd fee
+;; DEX -> JWALL DEX -> JWALL(USER) -> USER  3 * fwd fee 
+;; EVENT fwd fee
+;; total 6 fwd fee
+
+int lp::del_liquidity(int lp_amount, slice sender) impure inline_ref {
+    int extra_tons = msg::value - JWALL::BURN - (msg::fwd_fee * 6);
+    if (extra_tons < 0) {
+        utils::return_lp(sender, lp_amount);
+        return true;
+    }
+
+    int ton_amount = muldiv(lp_amount, self::ton_balance, self::lp_supply);
+    int jetton_amount = muldiv(lp_amount, self::jetton_balance, self::lp_supply);
+
+    utils::send_from_lp(sender, ton_amount, jetton_amount);
+    self::ton_balance -= ton_amount;
+    self::jetton_balance -= jetton_amount;
+
+    utils::burn_lp(lp_amount);
+
+    event::emit(sender, event::remove_liqudity(
+        sender,
+        lp_amount,
+        ton_amount,
+        jetton_amount
+    ));
+    return true;
+}

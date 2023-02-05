@@ -1,0 +1,91 @@
+cell mint::pack_root_data(var params) inline {
+    (cell root_code, slice admin_addr, cell content, cell jwall_code) = params;
+
+    return begin_cell()
+            .store_coins(0)
+            .store_slice(admin_addr)
+            .store_ref(content)
+            .store_ref(jwall_code)
+        .end_cell();
+}
+
+cell mint::root_state_init(cell code, cell data) inline {
+    return begin_cell()
+            .store_uint(0, 2)
+            .store_dict(code)
+            .store_dict(data)
+            .store_uint(0, 1)
+        .end_cell();
+}
+
+slice mint::root_addr(cell state_init) inline {
+    return begin_cell()
+        .store_uint(4, 3)
+        .store_int(0, 8)
+        .store_uint(cell_hash(state_init), 256)
+        .end_cell()
+        .begin_parse();
+}
+
+
+
+
+slice mint::lp_root(var params) impure inline_ref {
+    (cell root_code, slice admin_addr, cell content, cell jwall_code) = params;
+    cell data = mint::pack_root_data(params);
+    cell state_init = mint::root_state_init(root_code, data);
+    slice root_addr = mint::root_addr(state_init);
+
+    cell body = begin_cell()
+        .store_uint(3, 32)
+        .store_uint(cur_lt(), 64)
+        .store_slice(admin_addr)
+        .end_cell();
+
+    cell msg = begin_cell()
+        .store_uint(0x18, 6)
+        .store_slice(root_addr)
+        .store_coins(ROOT::TARGET)
+        .store_uint(4 + 2 + 1, 1 + 4 + 4 + 64 + 32 + 1 + 1 + 1)
+        .store_ref(state_init)
+        .store_ref(body)
+        .end_cell();
+
+    send_raw_message(msg, 1);
+
+    return root_addr;
+}
+
+cell pack_jetton_wallet_data(int balance, slice owner_address, slice jetton_master_address, cell jetton_wallet_code) inline {
+   return  begin_cell()
+            .store_coins(balance)
+            .store_slice(owner_address)
+            .store_slice(jetton_master_address)
+            .store_ref(jetton_wallet_code)
+           .end_cell();
+}
+
+cell calculate_jetton_wallet_state_init(slice owner_address, slice jetton_master_address, cell jetton_wallet_code) inline {
+  return begin_cell()
+          .store_uint(0, 2)
+          .store_dict(jetton_wallet_code)
+          .store_dict(pack_jetton_wallet_data(0, owner_address, jetton_master_address, jetton_wallet_code))
+          .store_uint(0, 1)
+         .end_cell();
+}
+
+slice calculate_jetton_wallet_address(cell state_init) inline {
+  return begin_cell().store_uint(4, 3)
+                     .store_int(0, 8)
+                     .store_uint(cell_hash(state_init), 256)
+                     .end_cell()
+                     .begin_parse();
+}
+
+slice calculate_user_jetton_wallet_address(slice owner_address, slice jetton_master_address, cell jetton_wallet_code) inline {
+  return calculate_jetton_wallet_address(calculate_jetton_wallet_state_init(owner_address, jetton_master_address, jetton_wallet_code));
+}
+
+slice mint::get_lp_addr(slice root_addr, cell jwall_code) impure inline_ref {
+    return calculate_user_jetton_wallet_address(my_address(), root_addr, jwall_code);
+}

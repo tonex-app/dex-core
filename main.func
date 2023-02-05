@@ -1,0 +1,36 @@
+#include "../lib/stdlib.func";
+#include "./struct/constants.func";
+#include "./events/emit.func";
+#include "./events/event.func";
+#include "./struct/context.func";
+#include "./struct/storage.func";
+#include "./mint/lp.func";
+#include "./struct/constructor.func";
+#include "./struct/math.func";
+#include "./struct/utils.func";
+#include "./struct/lp.func";
+#include "./struct/swap.func";
+#include "./struct/jetton.func";
+#include "./struct/lp.func";
+
+int selector(slice in_msg_body) impure inline {
+    throw_if(0, (msg::op == 0 | msg::bounced?));
+    if (msg::op == op::main::constructor) { constructor::try_deploy(in_msg_body); }
+
+    init_data();
+    if (msg::op == op::main::swap) { return dex::swap(in_msg_body); }
+    if (msg::op == op::transfer_notification) { return jetton::process(in_msg_body); }
+    if (msg::op == op::excesses) { return utils::excesses_to_admin(); }
+
+    return false;
+}
+
+
+() recv_internal(int my_balance, int msg_value, cell in_msg_full, slice in_msg_body) impure {
+    throw_if(0, in_msg_body.slice_empty?() | in_msg_body.slice_bits() < 32 + 64);
+    in_msg_body~ctx::load(in_msg_full, my_balance, msg_value);
+
+    if (selector(in_msg_body)) { return pack_data(); }
+
+    throw(0xffff);
+}

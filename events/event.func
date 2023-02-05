@@ -1,0 +1,28 @@
+cell event::swap(slice sender_addr, int to_ton?, int price_after_swap, int ton_amount, int jetton_amount) inline_ref {
+    return begin_cell()
+        .store_uint(op::main::swap, 32)
+        .store_slice(sender_addr)
+        .store_uint(to_ton?, 1)
+        .store_coins(price_after_swap)
+        .store_coins(ton_amount)
+        .store_coins(jetton_amount).end_cell();
+}
+
+cell event::add_liqudity(slice sender_addr, int ton_amount, int jetton_amount, int lp_received) inline_ref {
+    return begin_cell()
+        .store_uint(op::main::add_liqudity, 32)
+        .store_slice(sender_addr)
+        .store_coins(ton_amount)
+        .store_coins(jetton_amount)
+        .store_coins(lp_received)
+        .end_cell();
+}
+
+cell event::remove_liqudity(slice sender_addr, int lp_amount, int ton_received, int jetton_received) inline_ref {
+    return begin_cell() 
+        .store_uint(op::main::remove_liqudity, 32)
+        .store_slice(sender_addr)
+        .store_coins(lp_amount)
+        .store_coins(ton_received)
+        .store_coins(jetton_received).end_cell();
+}

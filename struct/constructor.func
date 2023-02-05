@@ -1,0 +1,37 @@
+() constructor::try_deploy(slice in_msg_body) impure inline_ref {
+    slice data = get_data().begin_parse();
+    throw_if(err::constructor, data~load_int(1));
+    throw_unless(err::access, equal_slices(msg::sender, data~load_msg_addr()));
+
+    throw_unless(err::small_amount, msg::value > 
+                MAIN::TARGET + ROOT::TARGET + msg::fwd_fee
+    );
+    self::dex_id = data~load_uint(32);
+
+    slice lp_info = in_msg_body~load_ref().begin_parse();
+
+    (cell root_code, cell content, cell jwall_code) = 
+    (lp_info~load_ref(), lp_info~load_ref(), lp_info~load_ref());
+
+    slice other_information = in_msg_body~load_ref().begin_parse();
+
+    slice root_addr = mint::lp_root(
+        root_code, my_address(), content, jwall_code)
+    ;
+
+    self::jetton_addr = other_information~load_msg_addr();
+    self::lp_addr =     mint::get_lp_addr(root_addr, jwall_code);
+    self::lp_root =     root_addr;
+
+    self::ton_balance = 0;
+    self::jetton_balance = 0;
+    self::lp_supply = 0;
+
+    self::admin_addr =      other_information~load_msg_addr();
+    self::dex_commission =  other_information~load_uint(30);
+    self::lp_commission =   other_information~load_uint(30);
+    self::factor =          other_information~load_uint(30);
+    
+    pack_data();
+    throw(0);
+}

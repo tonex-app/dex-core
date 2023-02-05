@@ -1,0 +1,45 @@
+int jetton::transfer(slice in_msg_body) impure inline_ref {
+    (int amount, slice sender, int fwd_payload) = 
+    (in_msg_body~load_coins(), in_msg_body~load_msg_addr(), in_msg_body~load_int(1));
+
+    int side_op = op::main::swap;
+
+    slice payload = delib::ES();
+    if (fwd_payload) {
+        payload = in_msg_body~load_ref().begin_parse();
+        side_op = in_msg_body~load_uint(32);
+    } else {
+        utils::bounce_jettons(amount, sender);
+        return true;
+    }
+
+    if (side_op == op::main::swap) {
+        int max_price = payload~load_coins();
+        return swap::jetton_to_ton(sender, amount, max_price);
+    }
+
+    if (side_op == op::main::add_liqudity) {
+        return lp::add_liquidity(amount, sender);
+    }
+
+    return false;
+}
+
+
+int jetton::process(slice in_msg_body) impure inline_ref {
+    int is_jetton? = equal_slices(msg::sender, self::jetton_addr);
+    int is_lp? = equal_slices(msg::sender, self::lp_addr);
+    throw_unless(err::access, is_jetton? | is_lp?);
+
+    if (is_lp?) {
+        (int lp_amount, slice sender) = 
+        (in_msg_body~load_coins(), in_msg_body~load_msg_addr());
+        return lp::del_liquidity(lp_amount, sender);
+    }
+
+    if (is_jetton?) {
+        return jetton::transfer(in_msg_body);
+    }
+
+    return false;
+}
